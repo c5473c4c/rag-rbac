@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG-RBAC Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3346;
+    --text: #e4e4e7;
+    --text-dim: #8b8fa3;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-brand {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .sidebar-brand h1 { font-size: 18px; color: var(--accent); }
+  .sidebar-brand small { color: var(--text-dim); font-size: 11px; }
+  .sidebar nav { flex: 1; }
+  .sidebar nav button {
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .sidebar nav button:hover { background: var(--surface2); color: var(--text); }
+  .sidebar nav button.active { color: var(--accent); background: var(--surface2); border-left: 3px solid var(--accent); }
+  .sidebar-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .sidebar-footer .username { color: var(--text); font-weight: 600; }
+  .sidebar-footer .role-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-left: 4px;
+  }
+  .role-admin { background: var(--accent); color: white; }
+  .role-user { background: var(--surface2); color: var(--text-dim); }
+  .sidebar-footer button {
+    margin-top: 8px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .sidebar-footer button:hover { border-color: var(--danger); color: var(--danger); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .main-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .main-header h2 { font-size: 18px; font-weight: 600; }
+  .main-content { flex: 1; padding: 24px; overflow-y: auto; }
+
+  /* ── Login ── */
+  .login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    width: 360px;
+  }
+  .login-box h1 { text-align: center; margin-bottom: 8px; color: var(--accent); }
+  .login-box p { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+
+  /* ── Forms ── */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 4px; }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { opacity: 0.85; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-full { width: 100%; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
+  td { font-size: 14px; }
+
+  /* ── Cards ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .stat-card .label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* ── Upload ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+  }
+  .upload-zone:hover { border-color: var(--accent); color: var(--accent); }
+  .upload-zone.dragover { border-color: var(--accent); background: rgba(99,102,241,0.05); }
+  .upload-zone input[type="file"] { display: none; }
+
+  /* ── Chat ── */
+  .chat-container { display: flex; flex-direction: column; height: calc(100vh - 130px); }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px 0; }
+  .chat-msg { margin-bottom: 16px; max-width: 80%; }
+  .chat-msg.user { margin-left: auto; }
+  .chat-msg .bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .chat-msg.user .bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .chat-msg.assistant .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .chat-msg .sources { font-size: 11px; color: var(--text-dim); margin-top: 6px; padding: 0 4px; }
+  .chat-input-bar {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .chat-input-bar input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .chat-input-bar input:focus { border-color: var(--accent); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+  }
+  .toast.success { background: var(--success); color: white; }
+  .toast.error { background: var(--danger); color: white; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ── RBAC Explainer ── */
+  .rbac-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .rbac-info strong { color: var(--accent); }
+
+  .hidden { display: none !important; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- ════ LOGIN PAGE ════ -->
+<div id="loginPage" class="login-page">
+  <div class="login-box">
+    <h1>RAG-RBAC</h1>
+    <p>Proof of Concept — Local AI with Role-Based Access</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input id="loginUser" type="text" placeholder="admin" autofocus>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="loginPass" type="password" placeholder="admin123">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="login()">Sign In</button>
+    <p id="loginError" style="color:var(--danger);font-size:12px;margin-top:12px;text-align:center" class="hidden"></p>
+  </div>
+</div>
+
+<!-- ════ MAIN APP ════ -->
+<div id="appPage" class="app hidden">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h1>RAG-RBAC</h1>
+      <small>Local PoC Dashboard</small>
+    </div>
+    <nav>
+      <button onclick="showPage('query')" data-page="query">💬 Ask Questions</button>
+      <button onclick="showPage('documents')" data-page="documents">📄 Documents</button>
+      <button onclick="showPage('users')" data-page="users" id="navUsers" class="hidden">👥 Users</button>
+      <button onclick="showPage('stats')" data-page="stats" id="navStats" class="hidden">📊 Stats</button>
+    </nav>
+    <div class="sidebar-footer">
+      <div>
+        <span class="username" id="displayUser"></span>
+        <span class="role-badge" id="displayRole"></span>
+      </div>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="main-header">
+      <h2 id="pageTitle">Ask Questions</h2>
+    </div>
+    <div class="main-content">
+
+      <!-- ── Query Page ── -->
+      <div id="page-query" class="page-content">
+        <div class="rbac-info">
+          <strong>RBAC Active:</strong> Your queries only search embeddings you own.
+          <span id="rbacAdminNote" class="hidden"> As an <strong>admin</strong>, you have access to <em>all</em> users' documents.</span>
+          <span id="rbacUserNote"> Upload documents on the Documents page to build your knowledge base.</span>
+        </div>
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg assistant">
+              <div class="bubble">Hello! I can answer questions based on your uploaded documents. What would you like to know?</div>
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <input id="chatInput" type="text" placeholder="Ask a question about your documents..." onkeydown="if(event.key==='Enter')sendQuery()">
+            <button class="btn btn-primary" onclick="sendQuery()" id="sendBtn">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Documents Page ── -->
+      <div id="page-documents" class="page-content hidden">
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div style="font-size:32px;margin-bottom:8px">📁</div>
+          <div>Drop PDF or text files here, or click to browse</div>
+          <div style="font-size:12px;margin-top:4px">Supports: PDF, TXT, MD, CSV (max 20MB)</div>
+          <input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv" multiple onchange="uploadFiles(this.files)">
+        </div>
+        <div id="uploadProgress" class="hidden" style="margin-bottom:16px;color:var(--accent)"><span class="spinner"></span> Uploading and ingesting...</div>
+        <h3 style="margin-bottom:12px;font-size:15px;color:var(--text-dim)">Your Documents</h3>
+        <table>
+          <thead><tr><th>Filename</th><th>Chunks</th><th id="docOwnerCol" class="hidden">Owner</th><th>Uploaded</th><th></th></tr></thead>
+          <tbody id="docTable"></tbody>
+        </table>
+      </div>
+
+      <!-- ── Users Page (Admin) ── -->
+      <div id="page-users" class="page-content hidden">
+        <div style="display:flex;gap:12px;margin-bottom:20px;align-items:end">
+          <div class="form-group" style="margin:0;flex:1">
+            <label>Username</label>
+            <input id="newUsername" type="text" placeholder="jdoe">
+          </div>
+          <div class="form-group" style="margin:0;flex:1">
+            <label>Password</label>
+            <input id="newPassword" type="password" placeholder="••••••">
+          </div>
+          <div class="form-group" style="margin:0;width:120px">
+            <label>Role</label>
+            <select id="newRole">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="createUser()">Create User</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Created</th><th></th></tr></thead>
+          <tbody id="userTable"></tbody>
+        </table>
+      </div>
+
+      <!-- ── Stats Page (Admin) ── -->
+      <div id="page-stats" class="page-content hidden">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="rbac-info">
+          <strong>Architecture:</strong> Documents are chunked and embedded via <strong>nomic-embed-text</strong>
+          through Ollama. Each embedding is tagged with the owner's <code>user_id</code> in Qdrant.
+          At query time, a metadata filter restricts results to the requesting user's vectors — unless
+          they're an admin. The LLM (<strong>nemotron-mini</strong>) generates answers from the filtered context only.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let token = null;
+let currentUser = null;
+
+const API = '';
+
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (opts.json) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.json);
+    delete opts.json;
+  }
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('Session expired'); }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── Auth ──
+async function login() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!username || !password) return;
+  try {
+    const data = await api('/api/auth/login', { method: 'POST', json: { username, password } });
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('rag_token', token);
+    localStorage.setItem('rag_user', JSON.stringify(currentUser));
+    enterApp();
+  } catch (e) {
+    const err = document.getElementById('loginError');
+    err.textContent = e.message;
+    err.classList.remove('hidden');
+  }
+}
+
+function logout() {
+  token = null;
+  currentUser = null;
+  localStorage.removeItem('rag_token');
+  localStorage.removeItem('rag_user');
+  document.getElementById('loginPage').classList.remove('hidden');
+  document.getElementById('appPage').classList.add('hidden');
+}
+
+function enterApp() {
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('appPage').classList.remove('hidden');
+  document.getElementById('displayUser').textContent = currentUser.username;
+  const badge = document.getElementById('displayRole');
+  badge.textContent = currentUser.role;
+  badge.className = `role-badge role-${currentUser.role}`;
+
+  // Show admin nav items
+  if (currentUser.role === 'admin') {
+    document.getElementById('navUsers').classList.remove('hidden');
+    document.getElementById('navStats').classList.remove('hidden');
+    document.getElementById('docOwnerCol').classList.remove('hidden');
+    document.getElementById('rbacAdminNote').classList.remove('hidden');
+    document.getElementById('rbacUserNote').classList.add('hidden');
+  } else {
+    document.getElementById('navUsers').classList.add('hidden');
+    document.getElementById('navStats').classList.add('hidden');
+    document.getElementById('docOwnerCol').classList.add('hidden');
+    document.getElementById('rbacAdminNote').classList.add('hidden');
+    document.getElementById('rbacUserNote').classList.remove('hidden');
+  }
+  showPage('query');
+}
+
+// ── Navigation ──
+const pageTitles = { query: '💬 Ask Questions', documents: '📄 Documents', users: '👥 User Management', stats: '📊 System Stats' };
+
+function showPage(page) {
+  document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`page-${page}`).classList.remove('hidden');
+  document.querySelectorAll('.sidebar nav button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  document.getElementById('pageTitle').textContent = pageTitles[page] || '';
+
+  if (page === 'documents') loadDocuments();
+  if (page === 'users') loadUsers();
+  if (page === 'stats') loadStats();
+}
+
+// ── Query / Chat ──
+async function sendQuery() {
+  const input = document.getElementById('chatInput');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML += `<div class="chat-msg user"><div class="bubble">${esc(question)}</div></div>`;
+
+  // Loading indicator
+  const loadingId = 'loading-' + Date.now();
+  msgs.innerHTML += `<div class="chat-msg assistant" id="${loadingId}"><div class="bubble"><span class="spinner"></span> Searching your documents...</div></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  document.getElementById('sendBtn').disabled = true;
+  try {
+    const data = await api('/api/query', { method: 'POST', json: { question, top_k: 5 } });
+    let sourcesHtml = '';
+    if (data.sources && data.sources.length > 0) {
+      const unique = [...new Set(data.sources.map(s => s.filename))];
+      sourcesHtml = `<div class="sources">📎 Sources: ${unique.join(', ')} (${data.chunks_searched} chunks matched)</div>`;
+    }
+    document.getElementById(loadingId).innerHTML = `<div class="bubble">${esc(data.answer)}</div>${sourcesHtml}`;
+  } catch (e) {
+    document.getElementById(loadingId).innerHTML = `<div class="bubble" style="border-color:var(--danger)">Error: ${esc(e.message)}</div>`;
+  }
+  document.getElementById('sendBtn').disabled = false;
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Documents ──
+async function loadDocuments() {
+  try {
+    const data = await api('/api/documents');
+    const tbody = document.getElementById('docTable');
+    if (data.documents.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);text-align:center;padding:24px">No documents uploaded yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.documents.map(d => `
+      <tr>
+        <td>${esc(d.filename)}</td>
+        <td>${d.chunk_count}</td>
+        ${currentUser.role === 'admin' ? `<td>${esc(d.username)}</td>` : ''}
+        <td style="color:var(--text-dim)">${new Date(d.uploaded_at).toLocaleDateString()}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteDoc(${d.id})">Delete</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function uploadFiles(files) {
+  const prog = document.getElementById('uploadProgress');
+  prog.classList.remove('hidden');
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const data = await api('/api/documents/upload', { method: 'POST', body: fd });
+      toast(data.message);
+    } catch (e) {
+      toast(`Failed to upload ${file.name}: ${e.message}`, 'error');
+    }
+  }
+  prog.classList.add('hidden');
+  document.getElementById('fileInput').value = '';
+  loadDocuments();
+}
+
+async function deleteDoc(id) {
+  if (!confirm('Delete this document and all its embeddings?')) return;
+  try {
+    const data = await api(`/api/documents/${id}`, { method: 'DELETE' });
+    toast(data.message);
+    loadDocuments();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+if (dz) {
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); uploadFiles(e.dataTransfer.files); });
+}
+
+// ── Users (Admin) ──
+async function loadUsers() {
+  try {
+    const data = await api('/api/users');
+    const tbody = document.getElementById('userTable');
+    tbody.innerHTML = data.users.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td>${esc(u.username)}</td>
+        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+        <td style="color:var(--text-dim)">${new Date(u.created_at).toLocaleDateString()}</td>
+        <td>
+          ${u.role !== 'admin' ? `
+            <button class="btn btn-sm" style="background:var(--warning);color:#000;margin-right:4px"
+              onclick="toggleRole(${u.id},'${u.role}')">Toggle Role</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteUserAction(${u.id},'${u.username}')">Delete</button>
+          ` : '<span style="color:var(--text-dim);font-size:12px">Protected</span>'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function createUser() {
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+  if (!username || !password) return toast('Username and password required', 'error');
+  try {
+    await api('/api/auth/register', { method: 'POST', json: { username, password, role } });
+    toast(`User '${username}' created`);
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function toggleRole(id, current) {
+  const newRole = current === 'user' ? 'admin' : 'user';
+  try {
+    await api(`/api/users/${id}/role`, { method: 'PUT', json: { role: newRole } });
+    toast(`Role changed to ${newRole}`);
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteUserAction(id, name) {
+  if (!confirm(`Delete user '${name}' and ALL their documents/embeddings?`)) return;
+  try {
+    await api(`/api/users/${id}`, { method: 'DELETE' });
+    toast(`User '${name}' deleted`);
+    loadUsers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Stats (Admin) ──
+async function loadStats() {
+  try {
+    const data = await api('/api/stats');
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="value">${data.total_users}</div><div class="label">Total Users</div></div>
+      <div class="stat-card"><div class="value">${data.total_documents}</div><div class="label">Documents Ingested</div></div>
+      <div class="stat-card"><div class="value">${data.total_vectors.toLocaleString()}</div><div class="label">Embedding Vectors</div></div>
+      <div class="stat-card"><div class="value" style="font-size:18px;color:var(--success)">${data.qdrant_status}</div><div class="label">Qdrant Status</div></div>
+    `;
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── Helpers ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ── Auto-login from stored token ──
+(function init() {
+  const stored = localStorage.getItem('rag_token');
+  const user = localStorage.getItem('rag_user');
+  if (stored && user) {
+    token = stored;
+    currentUser = JSON.parse(user);
+    enterApp();
+  }
+  // Enter key on login
+  document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+})();
+</script>
+</body>
+</html>
