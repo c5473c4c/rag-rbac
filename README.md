@@ -5,19 +5,19 @@ A fully containerized, locally-running RAG (Retrieval Augmented Generation) syst
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                     Docker Compose Stack                      │
-│                                                              │
-│  ┌─────────────┐   ┌─────────────┐   ┌──────────────────┐  │
-│  │   Ollama     │   │   Qdrant    │   │   FastAPI App     │  │
-│  │             │   │             │   │                  │  │
-│  │ nemotron-   │   │  Vectors +  │   │  ┌─ Auth (JWT) │  │
-│  │   mini      │◄──│  Metadata   │◄──│  ├─ RAG Engine │  │
-│  │ nomic-embed │   │  Filtering  │   │  ├─ RBAC Logic │  │
-│  │   -text     │   │             │   │  └─ Dashboard  │  │
-│  └─────────────┘   └─────────────┘   └──────────────────┘  │
-│       :11434            :6333              :8000              │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                      Docker Compose Stack                      │
+│                                                                │
+│  ┌──────────────┐   ┌──────────────┐   ┌────────────────────┐  │
+│  │ Ollama       │   │ Qdrant       │   │ FastAPI App        │  │
+│  │              │   │              │   │                    │  │
+│  │ nemotron-    │   │ Vectors +    │   │ ┌─ Auth (JWT)      │  │
+│  │   mini       │◄──│ Metadata     │◄──│ ├─ RAG Engine      │  │
+│  │ nomic-embed  │   │ Filtering    │   │ ├─ RBAC Logic      │  │
+│  │   -text      │   │              │   │ └─ Dashboard       │  │
+│  └──────────────┘   └──────────────┘   └────────────────────┘  │
+│       :11434              :6333                :8000           │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## How RBAC Works at the Embedding Level
