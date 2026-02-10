@@ -422,6 +422,9 @@ function logout() {
   currentUser = null;
   localStorage.removeItem('rag_token');
   localStorage.removeItem('rag_user');
+  // Clear chat history so next user doesn't see it
+  document.getElementById('chatMessages').innerHTML =
+    '<div class="chat-msg assistant"><div class="bubble">Hello! I can answer questions based on your uploaded documents. What would you like to know?</div></div>';
   document.getElementById('loginPage').classList.remove('hidden');
   document.getElementById('appPage').classList.add('hidden');
 }

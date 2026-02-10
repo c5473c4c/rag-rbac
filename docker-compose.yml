@@ -9,16 +9,16 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     # If no GPU, comment out the deploy block above and uncomment:
-    # environment:
-    #   - OLLAMA_NUM_PARALLEL=1
+    environment:
+      - OLLAMA_NUM_PARALLEL=1
 
   # ── Vector Database ──
   qdrant:
